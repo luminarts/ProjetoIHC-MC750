@@ -1,5 +1,5 @@
 #include <Servo.h>
-#define SPEED_OF_SOUND 0.034 // micrometers/second
+#define SPEED_OF_SOUND 0.034 // meters/microsecond
 #define STOP_SERVO 90 // Neutral position to stop the servo
 #define MAX_SPEED 96
 
