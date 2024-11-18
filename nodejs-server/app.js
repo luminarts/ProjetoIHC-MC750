@@ -9,7 +9,7 @@ const parser = new parsers.Readline({
   delimiter: "\r\n",
 });
 
-const serialPortAddress = "";
+const serialPortAddress = ""; // ADD ADDRESS (see https://github.com/codeadamca/arduino-to-nodejs)
 
 var port = new SerialPort(serialPortAddress, {
   baudRate: 9600,
