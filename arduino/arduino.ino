@@ -28,6 +28,7 @@ bool sunSelected = false;
 bool lastEarthButtonState = HIGH;
 bool lastMoonButtonState = HIGH;
 bool lastSunButtonState = HIGH;
+int lastPressedButton = -1;
 
 // Timing variables
 unsigned long previousMillisSensor = 0;
@@ -81,6 +82,7 @@ void handleButtons() {
     moonSelected = false;
     sunSelected = false;
     updateLEDs();
+    logButtonPress(buttonEarthPin);
   }
 
   lastEarthButtonState = currentEarthButtonState;
@@ -92,6 +94,7 @@ void handleButtons() {
     earthSelected = false;
     sunSelected = false;
     updateLEDs();
+    logButtonPress(buttonMoonPin);
   }
 
   lastMoonButtonState = currentMoonButtonState;
@@ -103,6 +106,7 @@ void handleButtons() {
     earthSelected = false;
     moonSelected = false;
     updateLEDs();
+    logButtonPress(buttonSunPin);
   }
 
   lastSunButtonState = currentSunButtonState;
@@ -112,6 +116,27 @@ void updateLEDs() {
   digitalWrite(ledEarthPin, earthSelected ? HIGH : LOW);
   digitalWrite(ledMoonPin, moonSelected ? HIGH : LOW);
   digitalWrite(ledSunPin, sunSelected ? HIGH : LOW);
+}
+
+void logButtonPress(int buttonPin) {
+  if (lastPressedButton != buttonPin) {
+    Serial.println(buttonPinMask(buttonPin));
+    lastPressedButton = buttonPin;
+  }
+}
+
+int buttonPinMask(int buttonPin) {
+  switch(buttonPin) {
+    case buttonSunPin:
+      return 1;
+    case buttonEarthPin:
+      return 2;
+    case buttonMoonPin:
+      return 3;
+    default:
+      Serial.println("An error occurred");
+      return -1;
+  }
 }
 
 void handleSensor() {
@@ -124,11 +149,9 @@ void handleSensor() {
   duration = pulseIn(echoPin, HIGH, 30000); // Timeout after 30ms (30,000 microseconds)
 
   if (duration == 0) {
-    Serial.println("No echo detected");
     distance = -1;
   } else {
     distance = duration * SPEED_OF_SOUND / 2; // divide by 2 to cutoff the return distance of echo
-    Serial.println(distance);  
   }
 }
 
