@@ -1,68 +1,149 @@
 #include <Servo.h>
 #define SPEED_OF_SOUND 0.034 // meters/microsecond
 #define STOP_SERVO 90 // Neutral position to stop the servo
-#define MAX_SPEED 96
+#define MAX_SPEED 110
+#define MAX_DISTANCE 100
+
+// Pins
+const int servoPin = 2;
+const int trigPin = 3;  // HC-SR04 trigger pin
+const int echoPin = 4;  // HC-SR04 echo pin
+const int buttonEarthPin = 5;
+const int buttonMoonPin = 6;
+const int buttonSunPin = 7;
+const int ledEarthPin = 8;
+const int ledMoonPin = 9;
+const int ledSunPin = 10;
 
 Servo myServo;
 
-const int servoPin = 9;
-const int trigPin = 4;  // HC-SR04 trigger pin
-const int echoPin = 3;  // HC-SR04 echo pin
-
 long duration;
 int distance;
-const int distanceThreshold = 100; // centimeters
+const int distanceThreshold = MAX_DISTANCE; // centimeters
+
+// Button and LED states
+bool earthSelected = false;
+bool moonSelected = false;
+bool sunSelected = false;
+bool lastEarthButtonState = HIGH;
+bool lastMoonButtonState = HIGH;
+bool lastSunButtonState = HIGH;
+
+// Timing variables
+unsigned long previousMillisSensor = 0;
+const long sensorInterval = 100; // Time between sensor readings in milliseconds
+unsigned long previousMillisServo = 0;
+const long servoInterval = 50; // Time between servo speed adjustments
 
 int currentSpeed = STOP_SERVO;
 const int speedStep = 1;  // Step size for smooth speed adjustment
-const int speedChangeDelay = 200; // Delay between speed changes (adjust for smoothness)
 
 void setup()
 {
   Serial.begin(9600); // debugging purposes
 
-	myServo.attach(servoPin);
-  myServo.write(STOP_SERVO);  // Neutral position to stop. Check if this is the correct value for the servo used.
-
   pinMode(trigPin, OUTPUT);
   pinMode(echoPin, INPUT);
+  pinMode(buttonEarthPin, INPUT_PULLUP); // internal pull-up resistors
+  pinMode(buttonMoonPin, INPUT_PULLUP);
+  pinMode(buttonSunPin, INPUT_PULLUP);
+  pinMode(ledEarthPin, OUTPUT);
+  pinMode(ledMoonPin, OUTPUT);
+  pinMode(ledSunPin, OUTPUT);
+
+  myServo.attach(servoPin);
+  myServo.write(STOP_SERVO);  // Neutral position to stop. Check if this is the correct value for the servo used.
+  
+  digitalWrite(ledEarthPin, LOW);
+  digitalWrite(ledMoonPin, LOW);
+  digitalWrite(ledSunPin, LOW);
 }
 
 void loop()
 {
+  handleButtons();
+
+  unsigned long currentMillis = millis();
+
+  // non-blocking delay
+  if (currentMillis - previousMillisSensor >= sensorInterval) {
+    previousMillisSensor = currentMillis;
+    handleSensor();
+    adjustServoSpeed();
+  }
+}
+
+void handleButtons() {
+  // Earth
+  bool currentEarthButtonState = digitalRead(buttonEarthPin);
+  if (currentEarthButtonState == LOW && lastEarthButtonState == HIGH) {
+    earthSelected = !earthSelected; // Toggle Earth LED state
+    moonSelected = false;
+    sunSelected = false;
+    updateLEDs();
+  }
+
+  lastEarthButtonState = currentEarthButtonState;
+
+  // Moon
+  bool currentMoonButtonState = digitalRead(buttonMoonPin);
+  if (currentMoonButtonState == LOW && lastMoonButtonState == HIGH) {
+    moonSelected = !moonSelected; // Toggle Moon LED state
+    earthSelected = false;
+    sunSelected = false;
+    updateLEDs();
+  }
+
+  lastMoonButtonState = currentMoonButtonState;
+
+  // Sun
+  bool currentSunButtonState = digitalRead(buttonSunPin);
+  if (currentSunButtonState == LOW && lastSunButtonState == HIGH) {
+    sunSelected = !sunSelected; // Toggle Sun LED state
+    earthSelected = false;
+    moonSelected = false;
+    updateLEDs();
+  }
+
+  lastSunButtonState = currentSunButtonState;
+}
+
+void updateLEDs() {
+  digitalWrite(ledEarthPin, earthSelected ? HIGH : LOW);
+  digitalWrite(ledMoonPin, moonSelected ? HIGH : LOW);
+  digitalWrite(ledSunPin, sunSelected ? HIGH : LOW);
+}
+
+void handleSensor() {
   digitalWrite(trigPin, LOW);
   delayMicroseconds(2);
   digitalWrite(trigPin, HIGH);
   delayMicroseconds(10);
   digitalWrite(trigPin, LOW);
-  
-  duration = pulseIn(echoPin, HIGH);
-  
-  calculateDistanceSensor();
 
-  if (distance > 0 && distance <= distanceThreshold) { 
-    for (int speed = currentSpeed + 1; speed <= MAX_SPEED; speed++) {
-      myServo.write(speed);
-      currentSpeed = speed;
-      delay(speedChangeDelay);
-    }
-  } else {
-    for (int speed = currentSpeed - 1; speed >= STOP_SERVO; speed--) {
-      myServo.write(speed);
-      currentSpeed = speed;
-      delay(speedChangeDelay);
-    }
-  }
+  duration = pulseIn(echoPin, HIGH, 30000); // Timeout after 30ms (30,000 microseconds)
 
-    delay(500);  // Delay for stability
-}
-
-void calculateDistanceSensor() {
   if (duration == 0) {
     Serial.println("No echo detected");
     distance = -1;
   } else {
     distance = duration * SPEED_OF_SOUND / 2; // divide by 2 to cutoff the return distance of echo
-	  Serial.println(distance);  
+    Serial.println(distance);  
   }
+}
+
+void adjustServoSpeed() {
+  if (distance > 0 && distance < distanceThreshold) {
+    if (currentSpeed < MAX_SPEED) {
+      currentSpeed += speedStep; // Gradually increase speed
+    }
+  } else {
+    if (currentSpeed > STOP_SERVO) {
+      currentSpeed -= speedStep; // Gradually decrease speed to neutral
+    }
+  }
+  
+  // Ensure speed stays within bounds
+  currentSpeed = constrain(currentSpeed, STOP_SERVO, MAX_SPEED);
+  myServo.write(currentSpeed);
 }
