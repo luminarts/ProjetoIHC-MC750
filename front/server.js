@@ -1,7 +1,5 @@
 const express = require('express');
 const path = require('path');
-const SerialPort = require('serialport');
-const Readline = require('@serialport/parser-readline');
 
 const app = express();
 const PORT = 3000;
@@ -15,11 +13,4 @@ app.get('/', (req, res) => {
 app.listen(PORT, () => {
     console.log(`Server is running at http://localhost:${PORT}`);
 });
-const port = new SerialPort('COM3', { baudRate: 9600 });
-const parser = port.pipe(new Readline({ delimiter: '\n' }));
 
-parser.on('data', (data) => {
-    console.log(`Received data from Arduino: ${data}`);
-});
-
-port.write('Hello from Node.js\n');
